@@ -30,9 +30,12 @@ t_philo	*addnew(char *av[],int i)
 	new->time_eat = atoi(av[3]);
 	new->time_sleep = atoi(av[4]);
 	new->time_die = atoi(av[2]);
-	new->nbr_meal = 0;
+	new->nbr_meal = -1290;
 	if(av[5])
+	{
+		new->nbr_meal = 0;
 		new->num_of_time_to_eat = atoi(av[5]);
+	}
 	pthread_mutex_init(&new->fork,NULL);
 	new->next = NULL;
 	return (new);
@@ -78,6 +81,7 @@ unsigned long get_time()
 unsigned long start_time;
 int state = 1;
 pthread_mutex_t printf_mutex;
+pthread_mutex_t meal_mutex;
 
 
 
@@ -98,32 +102,37 @@ void custom_sleep(int ms)
 	{
 		usleep(200);
 	}
-	
 }
 void *routine(t_philo *philo)
 {
-
 	while (1)
 	{
 		if (philo->key % 2)
+		{
+			// custom_sleep(200);
 			usleep(200);
+		}
 		if(philo->num_of_philo == 1)
 			break;
-			pthread_mutex_lock(&philo->fork);
-			printf_message(philo,"has taken a fork");
-			pthread_mutex_lock(&philo->next->fork);
-			printf_message(philo,"has taken a fork");
-			printf_message(philo,"is eating");
-			custom_sleep(philo->time_eat ); // time to eat
-			//lock mutex meal
-			philo->nbr_meal++;
-			philo->last_time_eat = get_time();
-			//lock mutex meal
-			pthread_mutex_unlock(&philo->fork);
-			pthread_mutex_unlock(&philo->next->fork);
-			printf_message(philo,"is sleeping");
-			custom_sleep(philo->time_sleep); // time to sleep
-			printf_message(philo,"is thinking");
+		pthread_mutex_lock(&philo->fork);
+		printf_message(philo,"has taken a fork");
+		pthread_mutex_lock(&philo->next->fork);
+		printf_message(philo,"has taken a fork");
+		printf_message(philo,"is eating");
+		custom_sleep(philo->time_eat ); 
+		//lock mutex meal
+		// pthread_mutex_lock(&meal_mutex);
+		// if (philo->nbr_meal < 0)
+		// 	philo->nbr_meal = 0;
+		philo->nbr_meal++;
+		philo->last_time_eat = get_time();
+		// pthread_mutex_lock(&meal_mutex);
+		//lock mutex meal
+		pthread_mutex_unlock(&philo->fork);
+		pthread_mutex_unlock(&philo->next->fork);
+		printf_message(philo,"is sleeping");
+		custom_sleep(philo->time_sleep); // time to sleep
+		printf_message(philo,"is thinking");
 	}
 	return (NULL);
 }
@@ -175,24 +184,34 @@ void	ft_create_threads(t_philo **ph)
 		i++;
 		philo = philo->next;
 	}
+	// while (i < philo->num_of_philo)
+	// {
+	// 	pthread_join(philo->thread, NULL);
+	// 	philo = philo->next;
+	// 	i++;
+	// }
 	while (state)
 	{	
 		//lock mutex meal
+		// pthread_mutex_lock(&meal_mutex);
+		
 		usleep(200);
+		// custom_sleep(200);
 		if(philo->nbr_meal == philo->num_of_time_to_eat)
 			break;
 		if(get_time() - philo->last_time_eat > (unsigned long)philo->time_die)
 		{
 			pthread_mutex_lock(&printf_mutex);
+			
 			state = 0;
 			printf("%ld %d died\n",get_time() - start_time,philo->key);
 			break;
 		}
 		if(!check_meal(ph))
 			break;
+		// pthread_mutex_unlock(&meal_mutex);
 		// unlock mutex meal
 	}
-	
 }
 int	check_args(int ac, char *av[])
 {
@@ -216,6 +235,7 @@ int main(int ac, char *av[])
    parsing_args(&philo,av);
 	start_time = get_time();
 	pthread_mutex_init(&printf_mutex,NULL);
+	pthread_mutex_init(&meal_mutex,NULL);
    ft_create_threads(&philo);
 
     // display(philo);
